@@ -687,9 +687,54 @@ function block_timestat_print_log($course, $user = 0, $datefrom = 0, $dateto = 0
 
         $row[] = block_timestat_seconds_to_stringtime($log->{'timespent'});
         $table->data[] = $row;
+        // NEW: Add Summarize button row
+        $btnrow  = new html_table_row();
+        $btncell = new html_table_cell();
+        $btncell->colspan = count($table->head);
+        $btncell->text = '
+            <button 
+                class="btn btn-sm btn-secondary timestat-summarize-btn"
+                data-userid="' . $log->userid . '"
+                data-courseid="' . $course->id . '"
+                data-datefrom="' . $datefrom . '"
+                data-dateto="' . $dateto . '">
+                Summarize Activity
+            </button>
+            <div class="timestat-summary-output-' . $log->userid . '" style="margin-top:8px;"></div>
+        ';
+        $btnrow->cells[] = $btncell;
+        $table->data[]   = $btnrow;
+        /////////////////////////////////
     }
 
     echo html_writer::table($table);
+    echo '
+        <script>
+        document.querySelectorAll(".timestat-summarize-btn").forEach(function(btn) {
+            btn.addEventListener("click", function() {
+                var userid   = this.dataset.userid;
+                var courseid = this.dataset.courseid;
+                var datefrom = this.dataset.datefrom;
+                var dateto   = this.dataset.dateto;
+                var output   = document.querySelector(".timestat-summary-output-" + userid);
+        
+                output.innerHTML = "<em>Generating summary...</em>";
+        
+                fetch("' . $CFG->wwwroot . '/blocks/timestat/summarize.php?userid=" + userid +
+                    "&courseid=" + courseid +
+                    "&datefrom=" + datefrom +
+                    "&dateto=" + dateto)
+                .then(function(res) { return res.json(); })
+                .then(function(data) {
+                    output.innerHTML = "<div class=\"alert alert-info\" style=\"word-wrap:break-word;overflow-x:hidden;max-width:100%;\">" + data.summary + "</div>";
+                })
+                .catch(function(error) {
+                    output.innerHTML = "<div class=\"alert alert-danger\">Failed: " + error.message + "</div>";
+                });
+            });
+        });
+        </script>
+    ';
     echo $OUTPUT->paging_bar($totalcount, $page, $perpage, "$url&perpage=$perpage");
 }
 

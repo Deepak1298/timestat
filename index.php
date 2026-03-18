@@ -163,6 +163,7 @@ if ($PAGE->user_allowed_editing() && $adminediting != -1) {
 }
 manager::write_close();
 
+
 if (!empty($chooselog)) {
     $userinfo = get_string('allparticipants');
     $dateinfo = get_string('alldays');
