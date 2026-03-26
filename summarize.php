@@ -47,7 +47,7 @@ foreach ($detaillogs as $log) {
     $logtext .= "[$time] $module - $action\n";
 }
 
-$apikey = 'AIzaSyB35eCwidydmQbxzkKq01hhdD55-L6wJKs';
+$apikey = 'my_api_key';
 $prompt = "The following are Moodle activity logs for a student. Please summarize what the user did,
             how engaged they were, and any patterns you notice. Format your response as clean HTML 
             using only these tags: <h5>, <p>, <ul>, <li>, <strong>, <em>. Do not use markdown, do not use backticks,
