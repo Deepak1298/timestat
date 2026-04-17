@@ -60,7 +60,7 @@ if (is_int($datefromget)) {
 }
 
 $datetoget = optional_param_array('dateto', 0, PARAM_INT);
-if (is_int($datetoget)) {
+if (is_int($datetoget)) {  
     $dateto = $datetoget;
 } else {
     $datetoyear = (int) $datetoget['year'];
@@ -161,7 +161,7 @@ $adminediting = optional_param('adminedit', -1, PARAM_BOOL);
 if ($PAGE->user_allowed_editing() && $adminediting != -1) {
     $USER->editing = $adminediting;
 }
-manager::write_close();
+
 
 
 if (!empty($chooselog)) {
@@ -232,8 +232,12 @@ if (!empty($chooselog)) {
 
     echo $OUTPUT->heading(get_string('chooselogs') . ':');
 
+    if ($dateto == 0) {
+        $dateto = strtotime('today 23:59:00');
+    }
+
     block_timestat_report_log_print_selector_form($course, $user, $datefrom, $modname, $modaction,
             $group, $showcourses, $showusers);
 }
-
+manager::write_close();
 echo $OUTPUT->footer();

@@ -41,7 +41,7 @@ class block_timestat extends block_base {
      * @throws coding_exception
      */
     public function init() {
-        $this->title = get_string('blocktitle', 'block_timestat');
+        $this->title = get_string('pluginname', 'block_timestat');
     }
 
     /**

@@ -24,7 +24,7 @@
  */
 
 $string['blockname'] = 'Timestat';
-$string['pluginname'] = 'You\'re_being_watched';
+$string['pluginname'] = 'Student Records';
 $string['blocktitle'] = 'Timestat';
 $string['nologs'] = 'No logs found!';
 $string['calculate'] = 'Calculate';

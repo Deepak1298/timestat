@@ -13,8 +13,8 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
-
-/**
+ 
+/** 
  * This file contains functions used by the block timestat
  *
  * This files lists the functions that are used during the log report generation.
@@ -24,7 +24,7 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-use core_user\fields;
+use core_user\fields; 
 
 defined('MOODLE_INTERNAL') || die;
 
@@ -345,10 +345,138 @@ function block_timestat_report_log_print_mnet_selector_form($hostid, $course, $s
     $mform = new block_timestat_calendar();
     $mform->set_data(['datefrom' => $selecteddatefrom]);
     $mform->set_data(['dateto' => $selecteddateto]);
+    
     $mform->display();
+
+    // NEW: Add Show Graph and Download buttons here
+    echo '
+    <button type="button" id="timestat-show-graph-btn"
+        data-courseid="' . $course->id . '"
+        data-datefrom="' . $selecteddatefrom . '"
+        data-dateto="' . $selecteddateto . '"
+        class="btn btn-primary" style="margin-left:10px;">
+        View Average Activity
+    </button>
+    <button type="button" id="timestat-download-graph-btn"
+        class="btn btn-secondary" style="margin-left:5px;display:none;">
+        Download Graph
+    </button>
+    <div id="timestat-graph-container" style="margin-top:20px;display:none;">
+        <div style="width:100%;height:400px;">
+        <canvas id="timestat-graph"></canvas>
+    </div>
+    ';
 
     echo '</div>';
     echo '</form>';
+
+    // NEW: JavaScript for graph
+    echo '
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+    var timestatChart = null;
+
+    document.getElementById("timestat-show-graph-btn").addEventListener("click", function() {
+        var courseid = this.dataset.courseid;
+        var datefrom = this.dataset.datefrom;
+        var dateto   = this.dataset.dateto;
+        var container = document.getElementById("timestat-graph-container");
+        var downloadbtn = document.getElementById("timestat-download-graph-btn");
+
+        container.style.display = "block";
+
+        fetch("' . $CFG->wwwroot . '/blocks/timestat/graph_data.php?courseid=" + courseid +
+            "&datefrom=" + datefrom +
+            "&dateto=" + dateto)
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+            if (data.error) {
+                container.innerHTML = "<div class=\'alert alert-danger\'>" + data.error + "</div>";
+                return;
+            }
+
+            var ctx = document.getElementById("timestat-graph").getContext("2d");
+
+            if (timestatChart) {
+                timestatChart.destroy();
+            }
+
+            timestatChart = new Chart(ctx, {
+                type: "line",
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: "Average Activities Completed Per Week",
+                        data: data.averages,
+                        borderColor: "rgba(75, 192, 192, 1)",
+                        backgroundColor: "rgba(75, 192, 192, 0.2)",
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: "top" },
+                        title: {
+                            display: true,
+                            text: "Average Student Activity Per Week"
+                        }
+                    },
+                    scales: {
+                    x: { 
+                    title: { display: true, text: "Week" },
+                        ticks: {
+                            maxRotation: 0,
+                            minRotation: 0,
+                            autoSkip: false,
+                            font: {
+                                size: 10
+                            }
+                        }
+                    },
+                    y: {
+                    title: { display: true, text: "Average Activities" },
+                        beginAtZero: true
+                    }
+                }
+                }
+            });
+
+            downloadbtn.style.display = "inline-block";
+        })
+        .catch(function(error) {
+            container.innerHTML = "<div class=\'alert alert-danger\'>Failed to load graph: " + error.message + "</div>";
+        });
+    });
+
+    document.getElementById("timestat-download-graph-btn").addEventListener("click", function() {
+        var canvas = document.getElementById("timestat-graph");
+        
+        // Create high resolution canvas (3x size)
+        var scale = 3;
+        var tempCanvas = document.createElement("canvas");
+        tempCanvas.width = canvas.width * scale;
+        tempCanvas.height = canvas.height * scale;
+        var ctx = tempCanvas.getContext("2d");
+    
+        // White background
+        ctx.fillStyle = "white";
+        ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+    
+        // Scale up and draw graph
+        ctx.scale(scale, scale);
+        ctx.drawImage(canvas, 0, 0);
+    
+        var link = document.createElement("a");
+        link.download = "timestat_graph.png";
+        link.href = tempCanvas.toDataURL("image/png", 1.0);
+        link.click();
+    });
+    </script>
+    ';
 }
 
 /**
@@ -692,15 +820,29 @@ function block_timestat_print_log($course, $user = 0, $datefrom = 0, $dateto = 0
         $btncell = new html_table_cell();
         $btncell->colspan = count($table->head);
         $btncell->text = '
+            <style>
+                /* This ensures YOUR button is bold and has the hover effect, 
+                   but inherits the Teal color from the theme */
+                .timestat-summarize-btn {
+                    letter-spacing: 0.5px;
+                    transition: all 0.2s ease;
+                }
+                .timestat-summarize-btn:hover {
+                    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+                    transform: translateY(-1px);
+                }
+            </style>
             <button 
-                class="btn btn-sm btn-secondary timestat-summarize-btn"
-                data-userid="' . $log->userid . '"
-                data-courseid="' . $course->id . '"
-                data-datefrom="' . $datefrom . '"
+                type="button" 
+                class="btn btn-primary timestat-summarize-btn" 
+                style="padding: 8px 16px;"
+                data-userid="' . $log->userid . '" 
+                data-courseid="' . $course->id . '" 
+                data-datefrom="' . $datefrom . '" 
                 data-dateto="' . $dateto . '">
                 Summarize Activity
             </button>
-            <div class="timestat-summary-output-' . $log->userid . '" style="margin-top:8px;"></div>
+            <div class="timestat-summary-output-' . $log->userid . '" style="margin-top:10px;"></div>
         ';
         $btnrow->cells[] = $btncell;
         $table->data[]   = $btnrow;
@@ -726,7 +868,7 @@ function block_timestat_print_log($course, $user = 0, $datefrom = 0, $dateto = 0
                     "&dateto=" + dateto)
                 .then(function(res) { return res.json(); })
                 .then(function(data) {
-                    output.innerHTML = "<div class=\"alert alert-info\" style=\"word-wrap:break-word;overflow-x:hidden;max-width:100%;\">" + data.summary + "</div>";
+                    output.innerHTML = "<div style=\"background-color: rgba(75, 192, 192, 1); color: white; font-weight: bold; padding: 15px; border-radius: 8px; border: 2px solid rgba(55, 160, 160, 1); word-wrap: break-word; text-align: left; margin-top: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);\">" + data.summary + "</div>";
                 })
                 .catch(function(error) {
                     output.innerHTML = "<div class=\"alert alert-danger\">Failed: " + error.message + "</div>";
@@ -884,7 +1026,7 @@ function block_timestat_get_logs($select, &$totalcount, array $params = null, $l
     $useridselect = '';
 
     if ($userid) {
-        $useridselect .= "AND userid = :userid";
+        $useridselect .= " AND l.userid = :userid";
     }
 
     if ($CFG->dbtype != 'mysqli') {
