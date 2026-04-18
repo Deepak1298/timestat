@@ -26,7 +26,7 @@
 use core\session\manager;
 
 require('../../config.php');
-global $CFG;
+global $CFG, $DB, $PAGE, $OUTPUT, $USER;
 require_once($CFG->dirroot . '/blocks/timestat/locallib.php');
 require_once($CFG->libdir . '/adminlib.php');
 

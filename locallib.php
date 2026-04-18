@@ -776,6 +776,66 @@ function block_timestat_print_log($course, $user = 0, $datefrom = 0, $dateto = 0
     echo "</div>\n";
 
     echo $OUTPUT->paging_bar($totalcount, $page, $perpage, "$url&perpage=$perpage");
+    echo '
+    <div id="timestat-cluster-section" style="margin-top:30px;">
+        <h4>Student Activity Classification</h4>
+        <div id="timestat-cluster-loading" style="margin-top:10px;">
+            <em>Calculating clusters...</em>
+        </div>
+        <div id="timestat-cluster-blocks" style="display:flex; gap:20px; margin-top:15px; display:none;">
+    
+            <a href="' . $CFG->wwwroot . '/blocks/timestat/cluster_view.php?type=Regular&courseid=' . $course->id . '&datefrom=' . $datefrom . '&dateto=' . $dateto . '"
+                style="flex:1; text-decoration:none;">
+                <div style="padding:20px; background:#28a745; color:white;
+                    border-radius:8px; text-align:center; cursor:pointer;">
+                    <h2 id="cluster-count-Regular">...</h2>
+                    <p style="margin:0; font-size:18px;">Regular</p>
+                    <small>High activity, consistent</small>
+                </div>
+            </a>
+    
+            <a href="' . $CFG->wwwroot . '/blocks/timestat/cluster_view.php?type=Occasional&courseid=' . $course->id . '&datefrom=' . $datefrom . '&dateto=' . $dateto . '"
+                style="flex:1; text-decoration:none;">
+                <div style="padding:20px; background:#ffc107; color:white;
+                    border-radius:8px; text-align:center; cursor:pointer;">
+                    <h2 id="cluster-count-Occasional">...</h2>
+                    <p style="margin:0; font-size:18px;">Occasional</p>
+                    <small>Moderate activity</small>
+                </div>
+            </a>
+    
+            <a href="' . $CFG->wwwroot . '/blocks/timestat/cluster_view.php?type=Inactive&courseid=' . $course->id . '&datefrom=' . $datefrom . '&dateto=' . $dateto . '"
+                style="flex:1; text-decoration:none;">
+                <div style="padding:20px; background:#dc3545; color:white;
+                    border-radius:8px; text-align:center; cursor:pointer;">
+                    <h2 id="cluster-count-Inactive">...</h2>
+                    <p style="margin:0; font-size:18px;">Inactive</p>
+                    <small>Very low activity</small>
+                </div>
+            </a>
+    
+        </div>
+    </div>
+    
+    <script>
+    fetch("' . $CFG->wwwroot . '/blocks/timestat/kmeans.php?courseid=' . $course->id . '&datefrom=' . $datefrom . '&dateto=' . $dateto . '")
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+        var counts = { "Regular": 0, "Occasional": 0, "Inactive": 0 };
+        for (var userid in data.clusters) {
+            counts[data.clusters[userid].cluster]++;
+        }
+        document.getElementById("cluster-count-Regular").innerHTML = counts["Regular"];
+        document.getElementById("cluster-count-Occasional").innerHTML = counts["Occasional"];
+        document.getElementById("cluster-count-Inactive").innerHTML = counts["Inactive"];
+        document.getElementById("timestat-cluster-loading").style.display = "none";
+        document.getElementById("timestat-cluster-blocks").style.display = "flex";
+    })
+    .catch(function(error) {
+        document.getElementById("timestat-cluster-loading").innerHTML = "Could not load clusters.";
+    });
+    </script>
+    ';
 
     $table = new html_table();
     $table->attributes['class'] = 'generaltable';
@@ -815,68 +875,11 @@ function block_timestat_print_log($course, $user = 0, $datefrom = 0, $dateto = 0
 
         $row[] = block_timestat_seconds_to_stringtime($log->{'timespent'});
         $table->data[] = $row;
-        // NEW: Add Summarize button row
-        $btnrow  = new html_table_row();
-        $btncell = new html_table_cell();
-        $btncell->colspan = count($table->head);
-        $btncell->text = '
-            <style>
-                /* This ensures YOUR button is bold and has the hover effect, 
-                   but inherits the Teal color from the theme */
-                .timestat-summarize-btn {
-                    letter-spacing: 0.5px;
-                    transition: all 0.2s ease;
-                }
-                .timestat-summarize-btn:hover {
-                    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-                    transform: translateY(-1px);
-                }
-            </style>
-            <button 
-                type="button" 
-                class="btn btn-primary timestat-summarize-btn" 
-                style="padding: 8px 16px;"
-                data-userid="' . $log->userid . '" 
-                data-courseid="' . $course->id . '" 
-                data-datefrom="' . $datefrom . '" 
-                data-dateto="' . $dateto . '">
-                Summarize Activity
-            </button>
-            <div class="timestat-summary-output-' . $log->userid . '" style="margin-top:10px;"></div>
-        ';
-        $btnrow->cells[] = $btncell;
-        $table->data[]   = $btnrow;
-        /////////////////////////////////
+        
     }
 
     echo html_writer::table($table);
-    echo '
-        <script>
-        document.querySelectorAll(".timestat-summarize-btn").forEach(function(btn) {
-            btn.addEventListener("click", function() {
-                var userid   = this.dataset.userid;
-                var courseid = this.dataset.courseid;
-                var datefrom = this.dataset.datefrom;
-                var dateto   = this.dataset.dateto;
-                var output   = document.querySelector(".timestat-summary-output-" + userid);
-        
-                output.innerHTML = "<em>Generating summary...</em>";
-        
-                fetch("' . $CFG->wwwroot . '/blocks/timestat/summarize.php?userid=" + userid +
-                    "&courseid=" + courseid +
-                    "&datefrom=" + datefrom +
-                    "&dateto=" + dateto)
-                .then(function(res) { return res.json(); })
-                .then(function(data) {
-                    output.innerHTML = "<div style=\"background-color: rgba(75, 192, 192, 1); color: white; font-weight: bold; padding: 15px; border-radius: 8px; border: 2px solid rgba(55, 160, 160, 1); word-wrap: break-word; text-align: left; margin-top: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);\">" + data.summary + "</div>";
-                })
-                .catch(function(error) {
-                    output.innerHTML = "<div class=\"alert alert-danger\">Failed: " + error.message + "</div>";
-                });
-            });
-        });
-        </script>
-    ';
+    
     echo $OUTPUT->paging_bar($totalcount, $page, $perpage, "$url&perpage=$perpage");
 }
 
